@@ -79,18 +79,42 @@ jobs:
 
       - name: Create deployment package
         run: |
-          # Copy files to dist directory
-          cp package.json package-lock.json dist/
-          mv node_modules/ dist/
-          cp server.js dist/
-          cd dist
+          # Debug: Check what files we have
+          echo "=== Files before packaging ==="
+          ls -la
+          echo "=== Dist contents ==="
+          ls -la dist/
+          echo "=== Server contents ==="
+          ls -la dist/server/ || echo "No server directory"
+          
+          # Create deployment directory structure
+          mkdir -p deployment
+          cp -r dist/* deployment/
+          cp package.json package-lock.json deployment/
+          mv node_modules/ deployment/
+          cp server.js deployment/
+          
+          cd deployment
+          
+          # Debug: Check what files we have in deployment
+          echo "=== Files in deployment directory ==="
+          ls -la
+          echo "=== Server contents in deployment ==="
+          ls -la server/ || echo "No server directory in deployment"
           
           # Update port configuration for Azure App Service
-          sed -i 's/"port": 4321/"port": process.env.PORT || 8080/' server/entry.mjs
-          
-          # Fix absolute paths in entry.mjs for Azure deployment
-          sed -i 's|"file:///.*/dist/client/"|"./client/"|g' server/entry.mjs
-          sed -i 's|"file:///.*/dist/server/"|"./server/"|g' server/entry.mjs
+          if [ -f "server/entry.mjs" ]; then
+            sed -i 's/"port": 4321/"port": process.env.PORT || 8080/' server/entry.mjs
+            echo "Port configuration updated in server/entry.mjs"
+            
+            # Fix absolute paths in entry.mjs for Azure deployment
+            sed -i 's|"file:///.*/dist/client/"|"./client/"|g' server/entry.mjs
+            sed -i 's|"file:///.*/dist/server/"|"./server/"|g' server/entry.mjs
+            echo "Absolute paths fixed in server/entry.mjs"
+          else
+            echo "WARNING: server/entry.mjs not found!"
+            find . -name "*.mjs" -o -name "*.js" | head -5
+          fi
           
           # Create web.config for Azure App Service
           cat > web.config << 'EOF'
@@ -127,8 +151,10 @@ jobs:
             </system.webServer>
           </configuration>
           EOF
-          zip -r app.zip .
-          mv app.zip ../
+          
+          # Create the deployment package
+          zip -r ../app.zip .
+          cd ..
 
       - name: Upload deployment package
         uses: actions/upload-artifact@v4
