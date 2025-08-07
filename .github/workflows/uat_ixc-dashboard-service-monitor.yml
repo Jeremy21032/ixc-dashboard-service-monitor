@@ -53,6 +53,7 @@ jobs:
             node_modules/
             package.json
             package-lock.json
+            server.js
 
   # ✅ PASO 2: CREATE-ZIP - Creación del paquete de despliegue
   create-zip:
