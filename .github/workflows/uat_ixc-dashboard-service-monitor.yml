@@ -41,6 +41,15 @@ jobs:
       - name: Build application
         run: npm run build
 
+      - name: Debug dist structure
+        run: |
+          echo "=== Dist directory structure ==="
+          ls -la dist/
+          echo "=== Dist/server directory structure ==="
+          ls -la dist/server/ || echo "No server directory found"
+          echo "=== Current directory structure ==="
+          find . -name "*.mjs" -o -name "*.js" | head -10
+
       - name: Copy server.js to dist
         run: cp server.js dist/server.js
 
@@ -75,8 +84,14 @@ jobs:
           mv node_modules/ dist/
           cp server.js dist/
           cd dist
+          
           # Update port configuration for Azure App Service
           sed -i 's/"port": 4321/"port": process.env.PORT || 8080/' server/entry.mjs
+          
+          # Fix absolute paths in entry.mjs for Azure deployment
+          sed -i 's|"file:///.*/dist/client/"|"./client/"|g' server/entry.mjs
+          sed -i 's|"file:///.*/dist/server/"|"./server/"|g' server/entry.mjs
+          
           # Create web.config for Azure App Service
           cat > web.config << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
